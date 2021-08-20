@@ -51,10 +51,59 @@ namespace Unity.RenderStreaming
             return (ISignaling)Activator.CreateInstance(_type, args);
         }
 
+
+        [System.Serializable]
+        public struct RSUrlSignalOverride
+        {
+            [SerializeField] public string urlSignalOverride;
+            [SerializeField] public bool renderTiledCanvas;
+
+            public override string ToString()
+            {
+                return JsonUtility.ToJson(this, true);
+            }
+        }
+
+        #region added_code_for_rsParams
+        public static RSUrlSignalOverride getReconfigData()
+        {
+            string readPath = Application.streamingAssetsPath;
+            if (Application.platform == RuntimePlatform.Android)
+            {
+                readPath = Application.persistentDataPath;
+            }
+
+            RSUrlSignalOverride rsParams = new RSUrlSignalOverride
+            {
+            };
+
+            const string configName = "RSUrlSignalOverride.json";
+            string configPath = System.IO.Path.Combine(readPath, configName);
+            if (System.IO.File.Exists(configPath))
+            {
+                rsParams = JsonUtility.FromJson<RSUrlSignalOverride>(System.IO.File.ReadAllText(configPath));
+                Debug.LogFormat("Searched for override at {0} and got\n{1}", configPath, rsParams);
+            }
+            else
+            {
+                Debug.LogFormat("Searched for override at {0} but found no data. Returning\n{1}", configPath, rsParams);
+            }
+
+            return rsParams;
+        }
+        #endregion
+
         void Awake()
         {
             if (!runOnAwake || m_running)
                 return;
+
+            string urlSignalOverride = getReconfigData().urlSignalOverride;
+            if (!string.IsNullOrEmpty(urlSignalOverride))
+            {
+                urlSignaling = urlSignalOverride;
+                Debug.LogFormat("updated urlSignaling to {0}", urlSignaling);
+            }
 
             RTCConfiguration conf = new RTCConfiguration {iceServers = iceServers};
             ISignaling signaling = CreateSignaling(
